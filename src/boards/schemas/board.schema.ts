@@ -1,5 +1,5 @@
 import { Prop, Schema, SchemaFactory } from '@nestjs/mongoose';
-import { Document } from 'mongoose';
+import { Document, Types } from 'mongoose';
 
 export type BoardDocument = Board & Document;
 
@@ -21,6 +21,9 @@ export class Board {
     // NEW: array of metrics (rows)
     @Prop({ type: [String], default: [] })
     metrics: string[];
+
+    @Prop({ type: [Types.ObjectId], ref: 'Customer', default: [] })
+    customers?: Types.ObjectId[];
 }
 
 export const BoardSchema = SchemaFactory.createForClass(Board);

@@ -22,6 +22,9 @@ export class Customer {
 
     @Prop()
     notes?: string;
+
+    @Prop({ type: [Types.ObjectId], ref: 'Board', default: [] })
+    boardIds?: Types.ObjectId[];
 }
 
 export const CustomerSchema = SchemaFactory.createForClass(Customer);

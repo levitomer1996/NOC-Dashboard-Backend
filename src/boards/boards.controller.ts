@@ -39,4 +39,44 @@ export class BoardsController {
     this.logger.log(`remove called id=${id}`);
     return await this.boardsService.remove(new Types.ObjectId(id));
   }
+
+  @Post(':id/customers/:customerId')
+  async addCustomer(@Param('id') id: string, @Param('customerId') customerId: string) {
+    this.logger.log(`addCustomer called boardId=${id} customerId=${customerId}`);
+    return await this.boardsService.addCustomerToBoard(
+      new Types.ObjectId(id),
+      new Types.ObjectId(customerId),
+    );
+  }
+
+  // ✅ delete by customer name (string)
+  @Delete(':id/environments/:enviormentname')
+  async removeCustomerFromBoardByName(
+    @Param('id') id: string,
+    @Param('enviormentname') customername: string,
+  ) {
+    this.logger.log(`removeCustomer called boardId=${id} customername=${customername}`);
+    return await this.boardsService.removeEnvirorment(new Types.ObjectId(id),
+      customername as string,
+    );
+  }
+
+  // POST /boards/:id/environments/:environmentName
+  @Post(':id/environments/:environmentName')
+  async addEnvironmentToBoard(
+    @Param('id') id: string,
+    @Param('environmentName') environmentName: string,
+  ) {
+    this.logger.log(
+      `addEnvironmentToBoard called boardId=${id} environmentName=${environmentName}`,
+    );
+
+    return await this.boardsService.addEnvironmentToBoardByName(
+      new Types.ObjectId(id),
+      environmentName,
+    );
+  }
+
+
+
 }

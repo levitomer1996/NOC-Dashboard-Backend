@@ -4,6 +4,7 @@ import { Model, Types } from 'mongoose';
 import { CreateBoardDto } from './dto/create-board.dto';
 import { UpdateBoardDto } from './dto/update-board.dto';
 import { Board, BoardDocument } from './schemas/board.schema';
+import { CustomersService } from '../customers/customers.service';
 
 @Injectable()
 export class BoardsService {
@@ -12,6 +13,7 @@ export class BoardsService {
   constructor(
     @InjectModel(Board.name)
     private readonly boardModel: Model<BoardDocument>,
+    private readonly customersService: CustomersService,
   ) { }
 
   async create(createBoardDto: CreateBoardDto): Promise<Board> {
@@ -29,6 +31,7 @@ export class BoardsService {
       this.logger.error('Failed to create board', error.stack);
       throw new InternalServerErrorException('Failed to create board');
     }
+
   }
 
   async findAll(): Promise<Board[]> {
@@ -111,6 +114,131 @@ export class BoardsService {
       throw error instanceof NotFoundException
         ? error
         : new InternalServerErrorException('Failed to delete board');
+    }
+  }
+
+  async addCustomerToBoard(boardId: Types.ObjectId | string, customerId: Types.ObjectId | string): Promise<Board> {
+    this.logger.log(`addCustomerToBoard() called boardId=${boardId} customerId=${customerId}`);
+
+    try {
+      const updated = await this.boardModel.findByIdAndUpdate(
+        boardId,
+        { $addToSet: { customers: customerId } },
+        { new: true },
+      ).exec();
+
+      if (!updated) {
+        this.logger.warn(`Board not found id=${boardId}`);
+        throw new NotFoundException(`Board with id "${boardId}" not found`);
+      }
+
+      // update customer side
+      await this.customersService.addBoardToCustomer(customerId, boardId);
+
+      this.logger.log(`Customer ${customerId} added to board ${boardId}`);
+      return updated;
+
+    } catch (error) {
+      this.logger.error(`Failed to add customer to board boardId=${boardId} customerId=${customerId}`, error.stack);
+      throw error instanceof NotFoundException
+        ? error
+        : new InternalServerErrorException('Failed to add customer to board');
+    }
+  }
+
+  async removeCustomerFromBoard(boardId: Types.ObjectId | string, customerId: Types.ObjectId | string): Promise<Board> {
+    this.logger.log(`removeCustomerFromBoard() called boardId=${boardId} customerId=${customerId}`);
+
+    try {
+      const updated = await this.boardModel.findByIdAndUpdate(
+        boardId,
+        { $pull: { customers: customerId } },
+        { new: true },
+      ).exec();
+
+      if (!updated) {
+        this.logger.warn(`Board not found id=${boardId}`);
+        throw new NotFoundException(`Board with id "${boardId}" not found`);
+      }
+
+      // update customer side
+      await this.customersService.removeBoardFromCustomer(customerId, boardId);
+
+      this.logger.log(`Customer ${customerId} removed from board ${boardId}`);
+      return updated;
+
+    } catch (error) {
+      this.logger.error(`Failed to remove customer from board boardId=${boardId} customerId=${customerId}`, error.stack);
+      throw error instanceof NotFoundException
+        ? error
+        : new InternalServerErrorException('Failed to remove customer from board');
+    }
+  }
+
+  async removeCustomerFromBoardByName(boardId: Types.ObjectId | string, customerName: string): Promise<Board> {
+    this.logger.log(`removeCustomerFromBoardByName() called boardId=${boardId} customerName=${customerName}`);
+    try {
+      // find customer by name
+      const customer = await this.customersService.findByName(customerName);
+      if (!customer) {
+        this.logger.warn(`Customer not found with name=${customerName}`);
+        throw new NotFoundException(`Customer with name "${customerName}" not found`);
+      }
+      return await this.removeCustomerFromBoard(boardId, customer._id);
+    } catch (error) {
+      this.logger.error(`Failed to find customer by name customerName=${customerName}`, error.stack);
+      throw error instanceof NotFoundException
+        ? error
+        : new InternalServerErrorException('Failed to find customer by name');
+
+    }
+  }
+  async removeEnvirorment(boardObjId: Types.ObjectId, customername: string) {
+    this.logger.log(`removeEnvirorment() called boardId=${boardObjId} customername=${customername}`);
+
+    return await this.boardModel.findByIdAndUpdate(
+      boardObjId,
+      { $pull: { environments: customername } },
+      { new: true }
+    ).exec();
+  }
+
+  async addEnvironmentToBoardByName(
+    boardId: Types.ObjectId | string,
+    environmentName: string,
+  ) {
+    this.logger.log(
+      `addEnvironmentToBoardByName() called boardId=${boardId} environmentName=${environmentName}`,
+    );
+
+    try {
+      const id =
+        typeof boardId === 'string' ? new Types.ObjectId(boardId) : boardId;
+
+      const updatedBoard = await this.boardModel
+        .findByIdAndUpdate(
+          id,
+          { $addToSet: { environments: environmentName } }, // prevents duplicates
+          { new: true },
+        )
+        .exec();
+
+      if (!updatedBoard) {
+        this.logger.warn(`Board not found id=${boardId}`);
+        throw new NotFoundException(`Board with id "${boardId}" not found`);
+      }
+
+      return updatedBoard;
+    } catch (error) {
+      this.logger.error(
+        `Failed to add environment to board boardId=${boardId} environmentName=${environmentName}`,
+        error.stack,
+      );
+      throw error instanceof NotFoundException
+        ? error
+        : new InternalServerErrorException(
+          'Failed to add environment to board',
+        );
     }
   }
 }
